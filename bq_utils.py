@@ -13,7 +13,7 @@ def get_bq_cli(project, sa_json_file=None, scopes=['https://www.googleapis.com/a
     if sa_json_file:
         credentials = service_account.Credentials.from_service_account_file(
             sa_json_file, scopes=scopes)
-        print(credentials.service_account_email)
+        logger.info(f"Service account credentials : {credentials.service_account_email}")
     else:
         credentials = None
 
@@ -48,7 +48,18 @@ def write_truncate_query_to_tab(sql, destination_table_id, bq_client):
     return None
 
 
-def copy_table_sql(source_table_id, destination_table_id, bq_client):
+def __check_field_exists(field_list, field_to_check):
+    missing_fields = []
+    for field in field_to_check:
+        if field in field_list:
+            logger.debug(f"field {field} exists in provided list")
+        else:
+            logger.info(f"field {field} not exists in provided list!")
+            missing_fields.append(field)
+    return missing_fields
+
+
+def copy_table_sql(source_table_id, destination_table_id, bq_client, mapping_cols={}):
     source_table_schema = get_schema(source_table_id, bq_client)
     destination_table_schema = get_schema(destination_table_id, bq_client)
     # compare schema
@@ -56,10 +67,16 @@ def copy_table_sql(source_table_id, destination_table_id, bq_client):
     diffrent_data_type = []
     list_of_cols = []
 
-    logger.debug(f"check if field is missing")
+    if __check_field_exists(destination_table_schema.keys(), mapping_cols.keys()):
+        logger.warning("One or more fields in mapping not existis in destination table")
+
     for field in destination_table_schema.keys():
+        # fixed definition if exist in mapping
+        if field in mapping_cols.keys():
+            logger.info(f"field {field} found in mapping, using defined value")
+            list_of_cols.append(f"{mapping_cols[field]} AS {field}")
         # check if field is missing
-        if source_table_schema.get(field, None):
+        elif source_table_schema.get(field, None):
             logger.debug(f"Field {field} exists in source")
             # check if schema match
             if destination_table_schema[field]["field_type"] != source_table_schema[field]["field_type"]:
@@ -82,5 +99,5 @@ def copy_table_sql(source_table_id, destination_table_id, bq_client):
         else:
             logger.error(f"Field {field} not exists in target table! Need to be fixed")
             return None
-    return build_select_sql(list_of_cols, source_table_id), missing_in_source, diffrent_data_type
 
+    return build_select_sql(list_of_cols, source_table_id), missing_in_source, diffrent_data_type
