@@ -48,6 +48,16 @@ def write_truncate_query_to_tab(sql, destination_table_id, bq_client):
     return None
 
 
+# WRITE_APPEND!
+def write_append_query_to_tab(sql, destination_table_id, bq_client):
+    job_config = bigquery.QueryJobConfig(destination=destination_table_id)
+    job_config.write_disposition = bigquery.WriteDisposition.WRITE_APPEND
+    query_job = bq_client.query(sql, job_config=job_config)
+    query_job.result()
+    logger.info(f"Query results loaded to the table {destination_table_id}")
+    return None
+
+
 def __check_field_exists(field_list, field_to_check):
     missing_fields = []
     for field in field_to_check:
