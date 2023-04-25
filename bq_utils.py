@@ -35,7 +35,7 @@ def build_select_sql(list_of_cols, source, condition=None):
     tab = '\t'
     return f"""SELECT
 {tab}{f', {new_line}{tab}'.join(list_of_cols)}
-FROM {source}""" + (f"""WHERE {condition};""" if condition else ";")
+FROM {source}""" + (f""" WHERE {condition};""" if condition else ";")
 
 
 # WRITE_TRUNCATE!
@@ -69,7 +69,7 @@ def __check_field_exists(field_list, field_to_check):
     return missing_fields
 
 
-def copy_table_sql(source_table_id, destination_table_id, bq_client, mapping_cols={}):
+def copy_table_sql(source_table_id, destination_table_id, bq_client, mapping_cols={}, condition=None, skip_not_exist_in_source_fields=False):
     source_table_schema = get_schema(source_table_id, bq_client)
     destination_table_schema = get_schema(destination_table_id, bq_client)
     # compare schema
@@ -106,8 +106,10 @@ def copy_table_sql(source_table_id, destination_table_id, bq_client, mapping_col
     for field in source_table_schema.keys():
         if destination_table_schema.get(field, None):
             logger.debug(f"Field {field} exist in target table")
+        elif skip_not_exist_in_source_fields == True:
+            logger.warning(f"Field {field} not exists in target table! Skip flag set on true!")
         else:
             logger.error(f"Field {field} not exists in target table! Need to be fixed")
             return None
 
-    return build_select_sql(list_of_cols, source_table_id), missing_in_source, diffrent_data_type
+    return build_select_sql(list_of_cols, source_table_id, condition), missing_in_source, diffrent_data_type
