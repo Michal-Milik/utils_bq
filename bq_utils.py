@@ -30,12 +30,18 @@ def get_schema(table_id, bq_client):
     return table_schema
 
 
-def build_select_sql(list_of_cols, source, condition=None):
-    new_line = '\n'
-    tab = '\t'
+def create_list_of_cols(schema):
+    out_list = []
+    for col in schema.keys():
+        logger.debug(col)
+        out_list.append(col)
+    return out_list
+
+
+def build_select_sql(list_of_cols, source, condition=None, new_line = '\n', tab = '\t'):
     return f"""SELECT
 {tab}{f', {new_line}{tab}'.join(list_of_cols)}
-FROM {source}""" + (f""" WHERE {condition};""" if condition else ";")
+FROM `{source}`""" + (f""" WHERE {condition};""" if condition else ";")
 
 
 # WRITE_TRUNCATE!
@@ -113,3 +119,11 @@ def copy_table_sql(source_table_id, destination_table_id, bq_client, mapping_col
             return None
 
     return build_select_sql(list_of_cols, source_table_id, condition), missing_in_source, diffrent_data_type
+
+
+def build_table_view(table_id, bq_client, new_line = '\n', tab = '\t'):
+    logger.info(f"Creating view query for table {table_id}")
+    schema = get_schema(table_id, bq_client)
+    sql = build_select_sql(create_list_of_cols(schema), table_id, new_line=new_line, tab=tab)
+    logger.debug(f"View query: \n{sql}")
+    return sql
